@@ -93,6 +93,13 @@ sourceSets {
         }
     }
 }
+
+// build.ohos.gradle.kts
+val ohosArm64Main by sourceSets.getting {
+    dependencies {
+        implementation("com.tencent.kuiklybase:shared_bridge-ohosarm64:1.0.1-2.0.21-KBA-010")
+    }
+}
 ```
 ###  仓库配置
 
