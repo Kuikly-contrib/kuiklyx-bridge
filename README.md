@@ -5,84 +5,18 @@
 ---
 
 
-## 一、概述
+## 概述
 
 `kuiklyx-bridge` 是一个基于 Kotlin Multiplatform (KMP) 的 **Kuikly 统一插件路由组件**，提供跨平台的插件注册、分发和调用能力。
 
-### 核心特性
-
-| 特性 | 说明 |
-|:-----|:-----|
-| **插件路由** | 通过 `插件名.方法名`（如 `ui.openUrl`）进行方法路由分发 |
-| **插件解耦** | 任意位置注册 Plugin 或 PluginMethod，无需关联 KuiklyModule |
-| **动态化支持** | 支持动态化产物及向下兼容，低版本获取失败不会导致页面异常 |
-| **多平台** | 支持 Android、iOS、JS、JVM、鸿蒙等多平台 |
-| **可空安全** | module 和 plugin 均为可空返回，支持低版本安全兼容 |
 
 ---
 
-## 二、架构设计
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                    Kuikly 业务页面 (Pager)                 │
-│                                                          │
-│   Bridge.getPlugin<UIPlugin>("ui")?.openKuikly(...)      │
-└──────────────────────┬───────────────────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────────────────┐
-│                   Bridge (入口对象)                        │
-│                                                          │
-│   - getPlugin<T>(pluginName): T?                         │
-│   - 内部获取 BridgeModule，再委托给 ProxyModule 查找插件      │
-└──────────────────────┬───────────────────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────────────────┐
-│              BridgeModule (ProxyModule)                   │
-│                                                          │
-│   - registerPluginModules(plugins)  // 注册插件工厂        │
-│   - getModule(key): Module?         // 懒加载获取插件       │
-└──────────┬──────────────────────────┬────────────────────┘
-           │                          │
-           ▼                          ▼
-┌──────────────────┐     ┌──────────────────────┐
-│   UIPlugin       │     │   OtherPlugin        │
-│   (PluginModule) │     │   (PluginModule)     │
-│                  │     │                      │
-│   pluginName:    │     │   pluginName:        │
-│    "ui"          │     │    "other"           │
-│                  │     │                      │
-│   callNative()   │     │   callNative()       │
-│   → ui.openUrl   │     │   → other.doSth      │
-└────────┬─────────┘     └──────────┬───────────┘
-         │                          │
-         ▼                          ▼
-┌──────────────────────────────────────────────────────────┐
-│                  Native 原生层                             │
-│                                                          │
-│  Android: KRBridgeModule → KuiklyPluginManager           │
-│  iOS:     HRBridgeModule → KKBridgePluginHelper          │
-│                                                          │
-│  方法路由: "ui.openUrl" → prefix="ui", method="openUrl"   │
-│  → 匹配对应的 KuiklyPlugin/IKuiklyBridgePlugin 执行        │
-└──────────────────────────────────────────────────────────┘
-```
 
-### 三层架构
+## 依赖接入
 
-| 层级 | 模块 | 说明 |
-|:-----|:-----|:-----|
-| **Kuikly 跨平台层** | `shared_bridge` | KMP 共享代码，包含 `Bridge`、`PluginModule`、`TMBasePager` 等 |
-| **Android 原生层** | `knative-bridge-android` | Android 侧 `KRBridgeModule`、`KuiklyPluginManager`、`KuiklyPlugin` |
-| **iOS 原生层** | `knative-bridge-ios` | iOS 侧 `HRBridgeModule`、`KKBridgePluginHelper` |
-
----
-
-## 三、依赖接入
-
-### 3.1 Kuikly 侧（共享模块）
+###  Kuikly 侧（共享模块）
 
 ```kotlin
 // build.gradle.kts
@@ -128,9 +62,9 @@ pod 'KuiklyxBridgeNative'
 
 ---
 
-## 四、Kuikly 侧使用（跨平台 Kotlin）
+## Kuikly 侧使用（跨平台 Kotlin）
 
-### 4.1 创建插件 PluginModule
+###  创建插件 PluginModule
 
 继承 `PluginModule`，实现 `pluginName()` 并定义业务方法：
 
@@ -183,7 +117,7 @@ internal class UIPlugin : PluginModule() {
 
 > **说明**：`callNative` 内部会自动拼接 `pluginName`，即 `callNative("openKuikly", ...)` 实际调用原生方法 `ui.openKuikly`。
 
-### 4.2 创建页面基类 TMBasePager
+###  创建页面基类 TMBasePager
 
 继承 `TMBasePager`，注册插件和自定义 Module：
 
@@ -223,7 +157,7 @@ internal abstract class BasePager : TMBasePager() {
 
 > **⚠️ 重要**：重写 `createExternalModules` 时 **必须** 调用 `super.createExternalModules().orEmpty()`，否则 `BridgeModule` 将不会被注册，导致所有插件不可用。
 
-### 4.3 调用插件
+###  调用插件
 
 在 Kuikly 页面中调用插件：
 
@@ -251,7 +185,7 @@ Bridge.getPlugin<UIPlugin>(UIPlugin.PLUGIN_NAME, targetPageId)
 
 > **注意**：`getPlugin` 返回可空类型 `T?`，支持动态化产物在低版本下的安全兼容。业务侧需自行处理获取失败的降级逻辑。
 
-### 4.4 注册自定义 Module
+###  注册自定义 Module
 
 除了 Plugin 外，也可以注册独立的 Module：
 
@@ -274,7 +208,7 @@ class ReportModule : TMBaseModule() {
 }
 ```
 
-### 4.5 插件方法注册（PluginMethod）
+###  插件方法注册（PluginMethod）
 
 在 `PluginModule` 中可以注册接收原生分发的方法回调：
 
@@ -306,7 +240,7 @@ class UIPlugin : PluginModule() {
 }
 ```
 
-### 4.6 callNative 方法详解
+###  callNative 方法详解
 
 `PluginModule` 和 `TMBaseModule` 提供多种与原生通信的方法：
 
@@ -351,7 +285,7 @@ class MyPlugin : PluginModule() {
 }
 ```
 
-### 4.7 获取 Pager 实例
+###  获取 Pager 实例
 
 在 Module 中可获取当前或指定的 Pager 实例：
 
@@ -372,11 +306,11 @@ class MyPlugin : PluginModule() {
 
 ---
 
-## 五、Android 原生侧使用
+## Android 原生侧使用
 
 Android 原生侧需要接收 Kuikly 层的 `callNative` 调用，并实现具体的原生逻辑。
 
-### 5.1 注册 KRBridgeModule
+###  注册 KRBridgeModule
 
 `KRBridgeModule` 是 Android 端的桥接入口，需要在 Kuikly 渲染器中注册：
 
@@ -388,7 +322,7 @@ KuiklyRenderEngine.registerModule(
 )
 ```
 
-### 5.2 创建 KuiklyPlugin（前缀插件）
+###  创建 KuiklyPlugin（前缀插件）
 
 继承 `KuiklyPlugin`，实现 `pluginName()` 并注册方法：
 
@@ -458,7 +392,7 @@ class FilePlugin : KuiklyPlugin() {
 }
 ```
 
-### 5.3 注册插件到 KuiklyPluginManager
+###  注册插件到 KuiklyPluginManager
 
 在 App 初始化时注册插件：
 
@@ -474,7 +408,7 @@ KuiklyPluginManager.registerPlugins(mapOf(
 ))
 ```
 
-### 5.4 动态注册/注销插件方法
+###  动态注册/注销插件方法
 
 可以在运行时动态添加或移除某个插件的方法：
 
@@ -503,7 +437,7 @@ KuiklyPluginManager.unregisterPluginMethod("ui", "showToast")
 KuiklyPluginManager.unregisterPlugin("ui")
 ```
 
-### 5.5 上下文 KNativeContext
+###  上下文 KNativeContext
 
 `KNativeContext` 封装了 Kuikly 原生上下文信息：
 
@@ -521,7 +455,7 @@ pluginMethod { context, params, callback ->
 }
 ```
 
-### 5.6 自定义日志
+###  自定义日志
 
 可替换默认的日志实现：
 
@@ -541,9 +475,9 @@ KBLog.logger = object : KBLogService {
 
 ---
 
-## 六、iOS 原生侧使用
+## iOS 原生侧使用
 
-### 6.1 注册 HRBridgeModule
+###  注册 HRBridgeModule
 
 在 Kuikly iOS 渲染器初始化时注册 `HRBridgeModule`：
 
@@ -553,7 +487,7 @@ KBLog.logger = object : KBLogService {
                          withClass:[HRBridgeModule class]];
 ```
 
-### 6.2 创建 iOS 插件
+###  创建 iOS 插件
 
 创建一个继承 `KKBridgePluginHelper` 并遵循 `IKuiklyBridgePlugin` 协议的类：
 
@@ -613,7 +547,7 @@ KBLog.logger = object : KBLogService {
 @end
 ```
 
-### 6.3 注册 iOS 插件
+###  注册 iOS 插件
 
 **方式一：使用宏注册（推荐）**
 
@@ -647,7 +581,7 @@ KBLog.logger = object : KBLogService {
 
 ---
 
-## 七、JsonResult 回调数据处理
+## JsonResult 回调数据处理
 
 `JsonResult` 是统一的回调数据结构，Kuikly 侧和 Android 原生侧都提供了对应的实现。
 
@@ -667,7 +601,7 @@ KBLog.logger = object : KBLogService {
 | `msg` | String | 描述信息 |
 | `data` | JSONObject? | 业务数据 |
 
-### 7.1 基本用法
+###  基本用法
 
 ```kotlin
 // Kuikly 侧回调处理
@@ -684,7 +618,7 @@ Bridge.getPlugin<UIPlugin>("ui")?.openKuikly("info") { result ->
 }
 ```
 
-### 7.2 fold 模式处理
+###  fold 模式处理
 
 `fold` 方法支持函数式风格处理结果：
 
@@ -718,7 +652,7 @@ Bridge.getPlugin<UIPlugin>("ui")?.openKuikly("info") { result ->
 }
 ```
 
-### 7.3 自定义数据解析（IResultData）
+###  自定义数据解析（IResultData）
 
 实现 `IResultData` 接口来定义数据模型：
 
@@ -753,7 +687,7 @@ val userInfo = result.toData { UserInfo.decode(it) }
 
 ---
 
-## 八、方法路由规则
+## 方法路由规则
 
 Bridge 插件路由采用 **前缀匹配** 模式：
 
